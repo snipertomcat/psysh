@@ -80,7 +80,7 @@ class Shell extends Application
     {
         $this->config        = $config ?: new Configuration();
         $this->cleaner       = $this->config->getCodeCleaner();
-        $this->loop          = new ExecutionLoop();
+        $this->loop          = new ExecutionLoop($this->cleaner);
         $this->context       = new Context();
         $this->includes      = array();
         $this->readline      = $this->config->getReadline();
@@ -884,6 +884,15 @@ class Shell extends Application
             // Since this is below the user's reporting threshold, it's always going to be a warning.
             return 'warning';
         }
+    }
+
+    /**
+     * @param $code
+     * @return mixed
+     */
+    public function execute($code)
+    {
+        return $this->loop->execute($this, $code);
     }
 
     /**
