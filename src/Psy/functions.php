@@ -218,8 +218,7 @@ if (!function_exists('Psy\info')) {
         }
 
         $autocomplete = array(
-            'tab completion enabled' => $config->getTabCompletion(),
-            'custom matchers'        => array_map('get_class', $config->getTabCompletionMatchers()),
+            'tab completion enabled' => $config->useTabCompletion(),
         );
 
         return array_merge($core, compact('updates', 'pcntl', 'readline', 'history', 'docs', 'autocomplete'));

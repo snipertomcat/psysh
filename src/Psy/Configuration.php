@@ -51,11 +51,11 @@ class Configuration
         'requireSemicolons',
         'runtimeDir',
         'startupMessage',
-        'tabCompletion',
         'updateCheck',
         'useBracketedPaste',
         'usePcntl',
         'useReadline',
+        'useTabCompletion',
         'useUnicode',
         'warnOnMultipleConfigs',
     );
@@ -78,8 +78,8 @@ class Configuration
     private $newCommands = array();
     private $requireSemicolons = false;
     private $useUnicode;
-    private $tabCompletion;
-    private $tabCompletionMatchers = array();
+    private $useTabCompletion;
+    private $newMatchers = array();
     private $errorLoggingLevel = E_ALL;
     private $warnOnMultipleConfigs = false;
     private $colorMode;
@@ -94,7 +94,7 @@ class Configuration
     private $pager;
     private $manualDb;
     private $presenter;
-    private $completer;
+    private $autoCompleter;
     private $checker;
 
     /**
@@ -217,11 +217,25 @@ class Configuration
             }
         }
 
-        foreach (array('commands', 'tabCompletionMatchers', 'casters') as $option) {
+        // legacy `tabCompletion` option
+        //
+        // @todo trigger a deprecated error: use `useTabCompletion` instead.
+        if (isset($options['tabCompletion'])) {
+            $this->setUseTabCompletion($options['tabCompletion']);
+        }
+
+        foreach (array('commands', 'matchers', 'casters') as $option) {
             if (isset($options[$option])) {
                 $method = 'add' . ucfirst($option);
                 $this->$method($options[$option]);
             }
+        }
+
+        // legacy `tabCompletionMatchers` option
+        //
+        // @todo trigger a deprecated error: use `matchers` instead.
+        if (isset($options['tabCompletionMatchers'])) {
+            $this->addMatchers($options['tabCompletionMatchers']);
         }
     }
 
@@ -759,24 +773,44 @@ class Configuration
     /**
      * Enable or disable tab completion.
      *
-     * @param bool $tabCompletion
+     * @param bool $useTabCompletion
      */
-    public function setTabCompletion($tabCompletion)
+    public function setUseTabCompletion($useTabCompletion)
     {
-        $this->tabCompletion = (bool) $tabCompletion;
+        $this->useTabCompletion = (bool) $useTabCompletion;
+    }
+
+    /**
+     * @deprecated Call `setUseTabCompletion` instead
+     *
+     * @param bool $useTabCompletion
+     */
+    public function setTabCompletion($useTabCompletion)
+    {
+        $this->setUseTabCompletion($useTabCompletion);
     }
 
     /**
      * Check whether to use tab completion.
      *
-     * If `setTabCompletion` has been set to true, but readline is not actually
-     * available, this will return false.
+     * If `setUseTabCompletion` has been set to true, but readline is not
+     * actually available, this will return false.
      *
      * @return bool True if the current Shell should use tab completion
      */
+    public function useTabCompletion()
+    {
+        return isset($this->useTabCompletion) ? ($this->hasReadline && $this->useTabCompletion) : $this->hasReadline;
+    }
+
+    /**
+     * @deprecated Call `useTabCompletion` instead
+     *
+     * @return bool
+     */
     public function getTabCompletion()
     {
-        return isset($this->tabCompletion) ? ($this->hasReadline && $this->tabCompletion) : $this->hasReadline;
+        return $this->useTabCompletion();
     }
 
     /**
@@ -872,13 +906,13 @@ class Configuration
     }
 
     /**
-     * Set the Shell autocompleter service.
+     * Set the Shell AutoCompleter service.
      *
-     * @param AutoCompleter $completer
+     * @param AutoCompleter $autoCompleter
      */
-    public function setAutoCompleter(AutoCompleter $completer)
+    public function setAutoCompleter(AutoCompleter $autoCompleter)
     {
-        $this->completer = $completer;
+        $this->autoCompleter = $autoCompleter;
     }
 
     /**
@@ -888,34 +922,61 @@ class Configuration
      */
     public function getAutoCompleter()
     {
-        if (!isset($this->completer)) {
-            $this->completer = new AutoCompleter();
+        if (!isset($this->autoCompleter)) {
+            $this->autoCompleter = new AutoCompleter();
         }
 
-        return $this->completer;
+        return $this->autoCompleter;
     }
 
     /**
-     * Get user specified tab completion matchers for the AutoCompleter.
+     * @deprecated Nothing should be using this anymore
      *
      * @return array
      */
     public function getTabCompletionMatchers()
     {
-        return $this->tabCompletionMatchers;
+        return array();
     }
 
     /**
-     * Add additional tab completion matchers to the AutoCompleter.
+     * Add tab completion matchers to the AutoCompleter.
+     *
+     * This will buffer new matchers in the event that the Shell has not yet
+     * been instantiated. This allows the user to specify matchers in their
+     * config rc file, despite the fact that their file is needed in the Shell
+     * constructor.
+     *
+     * @param array $matchers
+     */
+    public function addMatchers(array $matchers)
+    {
+        $this->newMatchers = array_merge($this->newMatchers, $matchers);
+        if (isset($this->shell)) {
+            $this->doAddMatchers();
+        }
+    }
+
+    /**
+     * Internal method for adding tab completion matchers. This will set any new
+     * matchers once a Shell is available.
+     */
+    private function doAddMatchers()
+    {
+        if (!empty($this->newCommands)) {
+            $this->shell->addMatchers($this->newMatchers);
+            $this->newMatchers = array();
+        }
+    }
+
+    /**
+     * @deprecated Use `addMatchers` instead
      *
      * @param array $matchers
      */
     public function addTabCompletionMatchers(array $matchers)
     {
-        $this->tabCompletionMatchers = array_merge($this->tabCompletionMatchers, $matchers);
-        if (isset($this->shell)) {
-            $this->shell->addTabCompletionMatchers($this->tabCompletionMatchers);
-        }
+        $this->addMatchers($matchers);
     }
 
     /**
