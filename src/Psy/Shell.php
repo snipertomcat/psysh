@@ -232,7 +232,7 @@ class Shell extends Application
      */
     protected function getTabCompletionMatchers()
     {
-        trigger_error('getTabCompletionMatchers is no longer used', E_USER_DEPRECATED);
+        @trigger_error('getTabCompletionMatchers is no longer used', E_USER_DEPRECATED);
     }
 
     /**
@@ -1063,7 +1063,7 @@ class Shell extends Application
      */
     protected function autocomplete($text)
     {
-        trigger_error('Tab completion is provided by the AutoCompleter service', E_USER_DEPRECATED);
+        @trigger_error('Tab completion is provided by the AutoCompleter service', E_USER_DEPRECATED);
     }
 
     /**
